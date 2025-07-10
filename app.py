@@ -46,5 +46,8 @@ def run():
     else:
         return "⏳ 沒有符合 crossing up EMA200 的交易對"
 
+import os
+
 if __name__ == '__main__':
-    app.run()
+    port = int(os.environ.get('PORT', 5000))  # Render 會給你 PORT 環境變數
+    app.run(host='0.0.0.0', port=port)
