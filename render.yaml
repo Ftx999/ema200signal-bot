@@ -3,7 +3,8 @@ services:
     name: ema200signal-bot
     runtime: python
     buildCommand: ""
-    startCommand: "python app.py"
+    startCommand: python app.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.11
+
