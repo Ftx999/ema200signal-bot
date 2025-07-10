@@ -1,63 +1,72 @@
 from flask import Flask
-import pandas as pd
 import ccxt
-from ta.trend import EMAIndicator
-from datetime import datetime
+import pandas as pd
+import ta
 import pytz
-import os
+from datetime import datetime
 
+tz = pytz.timezone('Asia/Taipei')
 app = Flask(__name__)
 
-@app.route('/')
-def home():
-    return '🟢 EMA200 Signal Bot 正常運作中'
+# 初始化 MEXC 永續合約交易所
+exchange = ccxt.mexc({
+    'options': {
+        'defaultType': 'swap'
+    }
+})
 
-@app.route('/run')
-def run_signal():
+def fetch_signal(symbol):
     try:
-        tz = pytz.timezone("Asia/Taipei")
-        now = datetime.now(tz).strftime('%Y-%m-%d %H:%M')
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe='15m', limit=210)
+        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms').dt.tz_localize('UTC').dt.tz_convert(tz)
+        df.set_index('timestamp', inplace=True)
 
-        # 初始化 MEXC 交易所
-        exchange = ccxt.mexc()
-        exchange.load_markets()
+        if len(df) < 3:
+            print(f"⏭️ {symbol} 資料不足")
+            return None
 
-        # 你可以自行增加更多幣對
-        symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'OP/USDT', 'DOGE/USDT']
+        ema = ta.trend.EMAIndicator(close=df['close'], window=200)
+        df['ema200'] = ema.ema_indicator()
 
-        results = []
-        for symbol in symbols:
-            try:
-                ohlcv = exchange.fetch_ohlcv(symbol, timeframe='15m', limit=210)
-                df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-
-                # 計算 EMA200
-                df['ema200'] = EMAIndicator(close=df['close'], window=200).ema_indicator()
-
-                # 取得上一根 K 線的收盤價與 EMA200
-                prev_close = df['close'].iloc[-2]
-                prev_ema = df['ema200'].iloc[-2]
-
-                if prev_close > prev_ema:
-                    msg = f"✅ {symbol} 在 {now} 上一根15分鐘K線收盤突破 EMA200"
-                else:
-                    msg = f"❌ {symbol} 在 {now} 尚未突破 EMA200"
-
-                print(msg)
-                results.append(msg)
-
-            except Exception as e:
-                err_msg = f"❌ {symbol} 錯誤: {e}"
-                print(err_msg)
-                results.append(err_msg)
-
-        return '<br>'.join(results)
+        # crossing up：前一根在下，上一根在上
+        if df['close'].iloc[-3] < df['ema200'].iloc[-3] and df['close'].iloc[-2] > df['ema200'].iloc[-2]:
+            now = datetime.now(tz).strftime('%Y-%m-%d %H:%M')
+            message = f"✅ {symbol} 在 {now} 上一根15分鐘K線 crossing up EMA200"
+            print(message)
+            return message
+        return None
 
     except Exception as e:
-        print(f"🚨 全域錯誤: {e}")
-        return f"🚨 發生錯誤: {e}"
+        print(f"❌ {symbol} 錯誤: {e}")
+        return None
 
+def scan_symbols():
+    print("🔍 掃描中...")
+    try:
+        markets = exchange.load_markets()
+        usdt_pairs = [s for s in markets if 'USDT' in s and markets[s]['type'] == 'swap']
+    except Exception as e:
+        return f"❌ 無法載入市場資料: {e}"
+
+    messages = []
+    for symbol in usdt_pairs:
+        result = fetch_signal(symbol)
+        if result:
+            messages.append(result)
+    if not messages:
+        return "✅ 沒有符合 crossing up 條件的交易對"
+    return "\n".join(messages)
+
+# 網頁模式：用 /run 觸發
+@app.route('/run')
+def run():
+    result = scan_symbols()
+    return result
+
+# 如果是本機執行（例如 python app.py）
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
+    print("🚀 EMA200 Crossing Up Bot 啟動！")
+    scan_symbols()
+    app.run(host='0.0.0.0', port=10000)
 
