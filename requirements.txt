@@ -2,4 +2,6 @@ flask
 ccxt
 pandas
 ta
+pytz
+requests
 
