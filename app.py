@@ -64,6 +64,12 @@ def run():
     result = scan_symbols()
     return result
 
+
+@app.route('/')
+def index():
+    return "✅ EMA200 Crossing Up Bot is running! Try /run to scan now."
+
+
 # 如果是本機執行（例如 python app.py）
 if __name__ == '__main__':
     print("🚀 EMA200 Crossing Up Bot 啟動！")
