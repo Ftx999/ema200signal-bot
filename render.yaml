@@ -1,6 +1,9 @@
 services:
   - type: web
-    name: ema200-bot
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    name: ema200signal-bot
+    runtime: python
+    buildCommand: ""
+    startCommand: "python app.py"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11
