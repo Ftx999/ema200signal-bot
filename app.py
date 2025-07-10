@@ -70,6 +70,11 @@ def scan_symbols():
 def run():
     return scan_symbols()
 
+@app.route('/')
+def home():
+    return "✅ EMA200 Signal Bot 正常運行中，請訪問 /run 觸發掃描。"
+
+
 # 本地執行時自動掃一次並啟動 server
 if __name__ == '__main__':
     print("🚀 EMA200 Crossing Up Bot 已啟動！")
