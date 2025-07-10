@@ -7,8 +7,8 @@ import requests
 from datetime import datetime
 
 # === Telegram 設定 ===
-TELEGRAM_TOKEN = '你的BOT_TOKEN'
-CHAT_ID = '你的CHAT_ID'
+TELEGRAM_TOKEN = '7503875589:AAHDFUd4XwUv3bgj7Lc6H1lD1VZeGNN4UB8'
+CHAT_ID = '232584348'
 
 # === 系統初始化 ===
 tz = pytz.timezone('Asia/Taipei')
