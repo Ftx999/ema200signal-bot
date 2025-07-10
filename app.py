@@ -3,24 +3,34 @@ import ccxt
 import pandas as pd
 import ta
 import pytz
+import requests
 from datetime import datetime
 
-# 設定時區
+# === Telegram 設定 ===
+TELEGRAM_TOKEN = '你的BOT_TOKEN'
+CHAT_ID = '你的CHAT_ID'
+
+# === 系統初始化 ===
 tz = pytz.timezone('Asia/Taipei')
-
-# 初始化 Flask 應用
 app = Flask(__name__)
-
-# 初始化 MEXC 永續合約交易所
 exchange = ccxt.mexc({
     'options': {
-        'defaultType': 'swap'  # 使用 swap 表示永續合約
+        'defaultType': 'swap'
     }
 })
 
+# === 發送 Telegram 訊息 ===
+def send_telegram_message(text):
+    url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
+    payload = {'chat_id': CHAT_ID, 'text': text}
+    try:
+        requests.post(url, data=payload)
+    except Exception as e:
+        print(f"❌ Telegram 發送失敗: {e}")
+
+# === 檢查 crossing up 條件 ===
 def fetch_signal(symbol):
     try:
-        # 抓取15分鐘K線資料
         ohlcv = exchange.fetch_ohlcv(symbol, timeframe='15m', limit=210)
         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms').dt.tz_localize('UTC').dt.tz_convert(tz)
@@ -30,15 +40,15 @@ def fetch_signal(symbol):
             print(f"⏭️ {symbol} 資料不足")
             return None
 
-        # 計算EMA200
         ema = ta.trend.EMAIndicator(close=df['close'], window=200)
         df['ema200'] = ema.ema_indicator()
 
-        # crossing up 條件：倒數第3根收盤在 EMA200 下，倒數第2根收盤在 EMA200 上
+        # crossing up：前一根在下，上一根在上
         if df['close'].iloc[-3] < df['ema200'].iloc[-3] and df['close'].iloc[-2] > df['ema200'].iloc[-2]:
             now = datetime.now(tz).strftime('%Y-%m-%d %H:%M')
             message = f"✅ {symbol} 在 {now} 上一根15分鐘K線 crossing up EMA200"
             print(message)
+            send_telegram_message(message)
             return message
         return None
 
@@ -46,37 +56,40 @@ def fetch_signal(symbol):
         print(f"❌ {symbol} 錯誤: {e}")
         return None
 
+# === 掃描所有幣對 ===
 def scan_symbols():
-    print("🔍 開始掃描所有 MEXC USDT 合約交易對...")
+    print("🔍 掃描中...")
     try:
         markets = exchange.load_markets()
-        usdt_pairs = [s for s in markets if 'USDT' in s and markets[s].get('type') == 'swap']
+        usdt_pairs = [s for s in markets if 'USDT' in s and markets[s]['type'] == 'swap']
     except Exception as e:
         return f"❌ 無法載入市場資料: {e}"
 
     messages = []
-    for idx, symbol in enumerate(usdt_pairs):
-        print(f"➡️ ({idx + 1}/{len(usdt_pairs)}) 掃描 {symbol} 中...")
+    for i, symbol in enumerate(usdt_pairs):
+        print(f"[{i+1}/{len(usdt_pairs)}] 檢查 {symbol}")
         result = fetch_signal(symbol)
         if result:
             messages.append(result)
-
     if not messages:
-        return "✅ 沒有符合 crossing up EMA200 條件的交易對"
+        return "✅ 沒有符合 crossing up 條件的交易對"
     return "\n".join(messages)
 
-# 網頁模式：用 /run 觸發掃描
-@app.route('/run')
-def run():
-    return scan_symbols()
-
+# === 網頁入口 ===
 @app.route('/')
 def home():
     return "✅ EMA200 Signal Bot 正常運行中，請訪問 /run 觸發掃描。"
 
+@app.route('/run')
+def run():
+    result = scan_symbols()
+    return result
 
-# 本地執行時自動掃一次並啟動 server
+# === 本地測試入口 ===
 if __name__ == '__main__':
-    print("🚀 EMA200 Crossing Up Bot 已啟動！")
+    print("🚀 EMA200 Crossing Up Bot 啟動！")
     scan_symbols()
     app.run(host='0.0.0.0', port=10000)
+
+})
+
