@@ -1,16 +1,11 @@
 services:
   - type: web
-    name: ema200-signal-bot
+    name: ema200signal-bot
     env: python
-    plan: free
-    region: oregon
     buildCommand: pip install -r requirements.txt
     startCommand: python app.py
+    plan: free
+    region: singapore
     envVars:
-      - key: TELEGRAM_TOKEN
-        value: 7503875589:AAHDFUd4XwUv3bgj7Lc6H1lD1VZeGNN4UB8
-      - key: CHAT_ID
-        value: 232584348
-    autoDeploy: true
-
-
+      - key: PYTHON_VERSION
+        value: 3.10
