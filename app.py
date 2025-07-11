@@ -12,8 +12,8 @@ CHAT_ID = '232584348'
 
 # === 系統初始化 ===
 tz = pytz.timezone('Asia/Taipei')
-exchange = ccxt.mexc({'options': {'defaultType': 'swap'}})
 app = Flask(__name__)
+exchange = ccxt.mexc({'options': {'defaultType': 'swap'}})
 
 # === 發送 Telegram 訊息 ===
 def send_telegram_message(text):
@@ -41,21 +41,21 @@ def fetch_signal(symbol):
 
         if df['close'].iloc[-3] < df['ema200'].iloc[-3] and df['close'].iloc[-2] > df['ema200'].iloc[-2]:
             now = datetime.now(tz).strftime('%Y-%m-%d %H:%M')
-            return f"✅ {symbol} 在 {now} crossing up EMA200"
+            return f"✅ {symbol} 在 {now} 上一根15分鐘K線 crossing up EMA200"
         return None
     except Exception as e:
         print(f"❌ {symbol} 錯誤: {e}")
         return None
 
-# === 掃描所有幣對並一次回報 ===
+# === 掃描所有幣對 ===
 def scan_symbols():
-    print("🔍 開始掃描 MEXC USDT 永續合約...")
+    print("🔍 掃描中...")
     try:
         markets = exchange.load_markets()
         usdt_pairs = [s for s in markets if 'USDT' in s and markets[s]['type'] == 'swap']
     except Exception as e:
         print(f"❌ 無法載入市場資料: {e}")
-        return "市場資料載入錯誤"
+        return
 
     messages = []
     for i, symbol in enumerate(usdt_pairs):
@@ -65,24 +65,22 @@ def scan_symbols():
             messages.append(result)
 
     if messages:
-        combined_message = "📊 本次符合條件的交易對：\n" + "\n".join(messages)
-        send_telegram_message(combined_message)
-        return combined_message
+        combined = "\n".join(messages)
+        send_telegram_message(combined)
+        print("📤 已發送通知")
     else:
-        print("✅ 無符合條件的交易對")
-        return "✅ 無符合 crossing up EMA200 條件的交易對"
+        print("✅ 沒有符合 crossing up 條件")
 
-# === 路由 ===
+# === Flask 路由 ===
 @app.route('/')
 def home():
-    return "✅ EMA200 Signal Bot 運行中"
+    return "✅ EMA200 Signal Bot 正常運行中，請訪問 /run 觸發掃描"
 
 @app.route('/run')
 def run():
-    result = scan_symbols()
-    return result
+    scan_symbols()
+    return "✅ 已完成掃描，請查看 Telegram"
 
-# === 啟動 Flask ===
+# === 本機開發用 ===
 if __name__ == '__main__':
-    print("🚀 EMA200 Crossing Up Bot 啟動中！")
     app.run(host='0.0.0.0', port=10000)
