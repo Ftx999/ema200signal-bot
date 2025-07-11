@@ -1,12 +1,22 @@
 services:
   - type: web
-    name: ema200-signal-bot
+    name: ema200signal-bot
     runtime: python
     buildCommand: pip install -r requirements.txt
     startCommand: python app.py
+    plan: free
     envVars:
       - key: TELEGRAM_TOKEN
-        value: 7503875589:AAHDFUd4XwUv3bgj7Lc6H1lD1VZeGNN4UB8
+        value: 你的_Telegram_Bot_TOKEN
       - key: CHAT_ID
-        value: 232584348
-    plan: free
+        value: 你的_CHAT_ID
+
+  - type: cron
+    name: keep-alive
+    schedule: "*/14 * * * *"  # 每14分鐘 ping 一次主網站，防止睡眠
+    command: curl https://ema200signal-bot.onrender.com/
+
+  - type: cron
+    name: run-scanner
+    schedule: "*/15 * * * *"  # 每15分鐘自動執行掃描
+    command: curl https://ema200signal-bot.onrender.com/run
