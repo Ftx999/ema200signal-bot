@@ -62,6 +62,7 @@ def scan_symbols():
 
 def job():
     print(f"⏰ {datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')} 開始掃描")
+    send_telegram_message("🔔 測試訊息：看你 Telegram 收不收到")
     scan_symbols()
     print("✅ 掃描完成")
     send_telegram_message("🔔 測試訊息：看你 Telegram 收不收到")
