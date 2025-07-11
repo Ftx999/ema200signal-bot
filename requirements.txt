@@ -4,4 +4,3 @@ pandas
 ta
 pytz
 requests
-schedule
