@@ -17,12 +17,14 @@ exchange = ccxt.mexc({'options': {'defaultType': 'swap'}})
 app = Flask(__name__)
 
 def send_telegram_message(text):
+    print(f"📬 準備發送 Telegram 訊息：{text}")  # ✅ 加這行看有沒有進來
     url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
     payload = {'chat_id': CHAT_ID, 'text': text}
     try:
         requests.post(url, data=payload)
     except Exception as e:
         print(f"❌ Telegram 發送失敗: {e}")
+
 
 def fetch_signal(symbol):
     try:
