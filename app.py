@@ -92,16 +92,9 @@ def run():
     job()
     return "✅ 手動觸發掃描完成"
 
-# 背景排程
-def start_scheduler():
-    schedule.every(15).minutes.at(":00").do(job)
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+
 
 # 啟動主程式
 if __name__ == '__main__':
     print("🚀 EMA200 Crossing Up Bot 啟動！")
-    job()
-    threading.Thread(target=start_scheduler, daemon=True).start()
     app.run(host='0.0.0.0', port=10000)
