@@ -65,6 +65,9 @@ def job():
     scan_symbols()
     print("✅ 掃描完成")
 
+send_telegram_message("🔔 測試訊息：看你 Telegram 收不收到")
+
+
 # === Flask routes ===
 @app.route('/')
 def home():
