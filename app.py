@@ -5,10 +5,11 @@ import pytz
 import requests
 import schedule
 import time
+import threading
 from datetime import datetime
 from flask import Flask
 
-# Telegram 設定，換成你的
+# Telegram 設定
 TELEGRAM_TOKEN = '7503875589:AAHDFUd4XwUv3bgj7Lc6H1lD1VZeGNN4UB8'
 CHAT_ID = '232584348'
 
@@ -17,14 +18,14 @@ exchange = ccxt.mexc({'options': {'defaultType': 'swap'}})
 app = Flask(__name__)
 
 def send_telegram_message(text):
-    print(f"📬 準備發送 Telegram 訊息：{text}")  # ✅ 加這行看有沒有進來
+    print(f"📬 準備發送 Telegram 訊息：{text}")
     url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
     payload = {'chat_id': CHAT_ID, 'text': text}
     try:
-        requests.post(url, data=payload)
+        response = requests.post(url, data=payload)
+        print(f"📨 Telegram 回應：{response.text}")
     except Exception as e:
         print(f"❌ Telegram 發送失敗: {e}")
-
 
 def fetch_signal(symbol):
     try:
@@ -62,8 +63,9 @@ def scan_symbols():
 def job():
     print(f"⏰ {datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')} 開始掃描")
     scan_symbols()
-    print("⏰ 掃描結束")
+    print("✅ 掃描完成")
 
+# === Flask routes ===
 @app.route('/')
 def home():
     return "✅ EMA200 Signal Bot 正常運行中"
@@ -71,13 +73,18 @@ def home():
 @app.route('/run')
 def run():
     job()
-    return "手動觸發掃描完成"
+    return "✅ 手動觸發掃描完成"
 
-if __name__ == '__main__':
-    print("🚀 EMA200 Crossing Up Bot 啟動！")
-    job()  # 啟動時先跑一次
-    schedule.every(15).minutes.at(":00").do(job)  # 每15分鐘整點跑
-    app.run(host='0.0.0.0', port=10000)
+# === Background scheduler ===
+def start_scheduler():
+    schedule.every(15).minutes.at(":00").do(job)
     while True:
         schedule.run_pending()
         time.sleep(1)
+
+# === 主程式啟動 ===
+if __name__ == '__main__':
+    print("🚀 EMA200 Crossing Up Bot 啟動！")
+    job()  # 一開始先掃一次
+    threading.Thread(target=start_scheduler, daemon=True).start()  # 排程背景執行
+    app.run(host='0.0.0.0', port=10000)
