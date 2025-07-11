@@ -1,24 +1,23 @@
+from flask import Flask
 import ccxt
 import pandas as pd
 import ta
 import pytz
 import requests
-import time
-import threading
 from datetime import datetime
-from flask import Flask
 
-# Telegram 設定
-TELEGRAM_TOKEN = '7503875589:AAHDFUd4XwUv3bgj7Lc6H1lD1VZeGNN4UB8'
-CHAT_ID = '232584348'
+# === Telegram 設定 ===
+TELEGRAM_TOKEN = '你的-BOT-TOKEN'
+CHAT_ID = '你的-CHAT-ID'
 
+# === 系統初始化 ===
 tz = pytz.timezone('Asia/Taipei')
 exchange = ccxt.mexc({'options': {'defaultType': 'swap'}})
 app = Flask(__name__)
 
-# 發送 Telegram 訊息
+# === 發送 Telegram 訊息 ===
 def send_telegram_message(text):
-    print(f"📬 準備發送 Telegram 訊息：\n{text}")
+    print(f"📬 準備發送 Telegram 訊息：{text}")
     url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
     payload = {'chat_id': CHAT_ID, 'text': text}
     try:
@@ -27,14 +26,13 @@ def send_telegram_message(text):
     except Exception as e:
         print(f"❌ Telegram 發送失敗: {e}")
 
-# 偵測 crossing up 的交易對
+# === 檢查 crossing up 條件 ===
 def fetch_signal(symbol):
     try:
         ohlcv = exchange.fetch_ohlcv(symbol, timeframe='15m', limit=210)
         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms').dt.tz_localize('UTC').dt.tz_convert(tz)
         df.set_index('timestamp', inplace=True)
-
         if len(df) < 3:
             return None
 
@@ -42,59 +40,49 @@ def fetch_signal(symbol):
         df['ema200'] = ema.ema_indicator()
 
         if df['close'].iloc[-3] < df['ema200'].iloc[-3] and df['close'].iloc[-2] > df['ema200'].iloc[-2]:
-            kline_time = df.index[-2].strftime('%Y-%m-%d %H:%M')
-            return f"✅ {symbol} 在 {kline_time} crossing up EMA200"
+            now = datetime.now(tz).strftime('%Y-%m-%d %H:%M')
+            return f"✅ {symbol} 在 {now} crossing up EMA200"
         return None
-
     except Exception as e:
         print(f"❌ {symbol} 錯誤: {e}")
         return None
 
-# 掃描所有交易對
+# === 掃描所有幣對並一次回報 ===
 def scan_symbols():
-    print("🔍 掃描中...")
-    results = []
+    print("🔍 開始掃描 MEXC USDT 永續合約...")
     try:
         markets = exchange.load_markets()
         usdt_pairs = [s for s in markets if 'USDT' in s and markets[s]['type'] == 'swap']
     except Exception as e:
         print(f"❌ 無法載入市場資料: {e}")
-        return results
+        return "市場資料載入錯誤"
 
+    messages = []
     for i, symbol in enumerate(usdt_pairs):
         print(f"[{i+1}/{len(usdt_pairs)}] 檢查 {symbol}")
         result = fetch_signal(symbol)
         if result:
-            results.append(result)
+            messages.append(result)
 
-    return results
-
-# 每 15 分鐘執行的工作
-def job():
-    print(f"⏰ {datetime.now(tz).strftime('%Y-%m-%d %H:%M:%S')} 開始掃描")
-    results = scan_symbols()
-
-    if results:
-        summary = "\n".join(results)
+    if messages:
+        combined_message = "📊 本次符合條件的交易對：\n" + "\n".join(messages)
+        send_telegram_message(combined_message)
+        return combined_message
     else:
-        summary = "🟢 本輪無任何 crossing up 結果"
+        print("✅ 無符合條件的交易對")
+        return "✅ 無符合 crossing up EMA200 條件的交易對"
 
-    send_telegram_message(summary)
-    print("✅ 掃描與通知完成")
-
-# Flask 路由
+# === 路由 ===
 @app.route('/')
 def home():
-    return "✅ EMA200 Signal Bot 正常運行中"
+    return "✅ EMA200 Signal Bot 運行中"
 
 @app.route('/run')
 def run():
-    job()
-    return "✅ 手動觸發掃描完成"
+    result = scan_symbols()
+    return result
 
-
-
-# 啟動主程式
+# === 啟動 Flask ===
 if __name__ == '__main__':
-    print("🚀 EMA200 Crossing Up Bot 啟動！")
+    print("🚀 EMA200 Crossing Up Bot 啟動中！")
     app.run(host='0.0.0.0', port=10000)
