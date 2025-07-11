@@ -3,7 +3,6 @@ import pandas as pd
 import ta
 import pytz
 import requests
-import schedule
 import time
 import threading
 from datetime import datetime
