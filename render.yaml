@@ -11,12 +11,14 @@ services:
       - key: CHAT_ID
         value: 你的_CHAT_ID
 
+  cron:
   - type: cron
     name: keep-alive
-    schedule: "*/14 * * * *"  # 每14分鐘 ping 一次主網站，防止睡眠
+    schedule: "*/13 * * * *"
     command: curl https://ema200signal-bot.onrender.com/
 
   - type: cron
     name: run-scanner
-    schedule: "*/15 * * * *"  # 每15分鐘自動執行掃描
+    schedule: "2,17,32,47 * * * *"  # 每小時的第2、17、32、47分鐘
     command: curl https://ema200signal-bot.onrender.com/run
+
